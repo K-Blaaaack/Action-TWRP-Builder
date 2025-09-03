@@ -62,25 +62,31 @@ jobs:
         echo "Build Target: ${{ github.event.inputs.BUILD_TARGET }}.img"
         echo "::endgroup::"
 
-    # You might want to Checkout your repo first, but not mandatory
     - name: Check Out
       uses: actions/checkout@v4
 
-    # Cleanup The Actions Workspace Using Custom Composite Run Actions
     - name: Cleanup
       uses: rokibhasansagar/slimhub_actions@main
-      # That's it! Now use your normal steps
+
+    - name: Add old-releases repository
+      run: |
+        echo "deb http://archive.ubuntu.com/ubuntu/ focal main universe" | sudo tee -a /etc/apt/sources.list.d/old-releases.list
+        sudo apt update
 
     - name: Prepare the environment
       run: |
-        sudo apt update && sudo apt upgrade -y
         DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
             linux-modules-extra-$(uname -r) \
             gperf gcc-multilib gcc-10-multilib g++-multilib g++-10-multilib \
             libc6-dev x11proto-core-dev libx11-dev tree lib32z-dev libgl1-mesa-dev libxml2-utils \
             xsltproc bc ccache lib32readline-dev lib32z1-dev liblz4-tool libsdl1.2-dev \
             libwxgtk3.2-dev libxml2 lzop pngcrush schedtool squashfs-tools \
-            imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses6 python3 tar 
+            imagemagick libbz2-dev lzma ncftp qemu-user-static libstdc++-10-dev libncurses6 libncurses5 python3 tar
+
+    - name: Verify libncurses5 installation
+      run: |
+        dpkg -l | grep libncurses5
+        ldconfig -p | grep libncurses.so.5
 
     - name: Install OpenJDK
       uses: actions/setup-java@v4
@@ -94,8 +100,8 @@ jobs:
           startsWith(github.event.inputs.COMMON_TREE_URL, 'git@github.com') }}
       uses: webfactory/ssh-agent@v0.9.0
       with:
-          ssh-private-key: |
-            ${{ secrets.SSH_PRIVATE_KEY }}
+        ssh-private-key: |
+          ${{ secrets.SSH_PRIVATE_KEY }}
 
     - name: Install repo
       run: |
@@ -146,10 +152,8 @@ jobs:
 
     - name: Switch to Python2
       run: |
-        sudo apt -y install python
-        sudo rm -rf /usr/bin/python
-        sudo ln -s /usr/bin/python2 /usr/bin/python
-        # sudo ln -s /usr/bin/python3 /usr/bin/python3
+        sudo apt -y install python-is-python2
+        sudo ln -sf /usr/bin/python2 /usr/bin/python
       continue-on-error: true
 
     - name: Building recovery
